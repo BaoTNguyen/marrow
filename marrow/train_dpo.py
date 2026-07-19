@@ -48,6 +48,8 @@ def main() -> None:
             save_strategy="epoch",
         ),
     )
+    from marrow.spine import SpineCallback
+    trainer.add_callback(SpineCallback("dpo"))
     trainer.train()
     trainer.save_model(args.out)
 

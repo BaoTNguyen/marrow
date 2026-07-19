@@ -67,6 +67,8 @@ def main() -> None:
             save_steps=25,
         ),
     )
+    from marrow.spine import SpineCallback
+    trainer.add_callback(SpineCallback("grpo"))
     trainer.train()
     trainer.save_model(args.out)
 
