@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "marrow"
+version = "0.1.0"
+description = "RL training for the heart coding-agent stack (2x RTX 3090)"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.4",
+    "transformers>=4.46",
+    "trl>=0.14",
+    "peft>=0.13",
+    "bitsandbytes>=0.44",
+    "datasets>=3.0",
+    "accelerate>=1.0",
+]
+
+[tool.setuptools]
+packages = ["marrow"]
+
+[project.scripts]
+marrow = "marrow.cli:main"
