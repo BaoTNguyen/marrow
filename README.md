@@ -10,6 +10,49 @@ stdlib-only so it installs anywhere in seconds. Training pulls in torch, TRL,
 PEFT, bitsandbytes, and vLLM — a multi-GB CUDA stack that has no business in a
 tool you install into every project.
 
+## Where it sits in the stack
+
+Marrow is the training layer at the bottom of a five-repo agent stack:
+
+```text
+capillaries  prompt/skill retrieval
+arteries     memory + trace substrate
+heart        orchestration + environment + reward
+plexus       goal decomposition + acceptance loop
+marrow       RL training on heart's episodes           <- this repo
+```
+
+Heart runs the episodes and scores them; marrow reads the exported
+`episodes.jsonl`, trains a checkpoint, and hands it back as heart's `api` agent.
+The loop closes there: a better checkpoint lands more scope per budget, which
+produces more training data.
+
+## What sets it apart
+
+Most open RL-for-code setups train on synthetic tasks with a proxy reward and
+assume a datacenter. Marrow does neither:
+
+- **The reward is the actual test suite.** Scoring applies the generated diff to
+  a fresh worktree at the base commit and runs the task's real verifiers (heart's
+  own code, CPU-side). No learned reward model to game, no BLEU-against-a-patch.
+- **It trains on episodes you actually ran.** Every stage feeds on heart's
+  exported runs and arteries' decision ledger. Best-of-N traffic from your daily
+  work is the data engine; nothing is fabricated to fill a training set.
+- **Staged with data gates, cheapest first.** Stages 0 through 4 each unlock the
+  next — best-of-N generates the pairs SFT needs, SFT stabilizes the checkpoint
+  DPO needs, and so on. You can't skip ahead past a gate, which is the point.
+- **48 GB is the whole budget.** Everything targets 2× RTX 3090 with no NVLink.
+  GRPO was chosen over PPO specifically because a value network would eat the VRAM
+  the policy needs; 4-bit QLoRA keeps a 7B model training on one card while the
+  other serves rollouts.
+- **It captures real CLI sessions as traces.** A shell hook wraps ordinary
+  `codex` and `claude` runs and records them under `.marrow/`, so agentic
+  behavior can be learned from how you already work — without touching hidden
+  chain-of-thought.
+- **The only score that counts is holdout.** `tasks/holdout/` is never trained
+  on and runs through the same episode machinery as everything else. A checkpoint
+  is judged the way it will actually be used.
+
 ## Hardware assumptions
 
 2× RTX 3090 (24 GB each, Ampere SM86, PCIe). bf16 works. FlashAttention-2
