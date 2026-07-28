@@ -52,6 +52,10 @@ assume a datacenter. Marrow does neither:
 - **The only score that counts is holdout.** `tasks/holdout/` is never trained
   on and runs through the same episode machinery as everything else. A checkpoint
   is judged the way it will actually be used.
+- **Training is visible on the same board as everything else.** The SFT/DPO/GRPO
+  loops tee progress into heart's event spine (`marrow/spine.py`), so a run's loss
+  and step cadence show up in `heart pulse` next to the episodes it trains on —
+  no separate dashboard.
 
 ## Hardware assumptions
 
