@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [dev]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # No install. marrow's pyproject pulls torch and transformers for training,
+      # and none of that is reachable from the suite — collection, reward shaping
+      # and the spine contracts are all stdlib. Installing a CUDA stack to run a
+      # three-second test suite would make the gate slow enough to route around.
+      - run: pip install pytest
+
+      - env:
+          PYTHONPATH: src
+        run: python -m pytest -q
