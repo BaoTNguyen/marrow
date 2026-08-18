@@ -83,3 +83,63 @@ def test_wrong_key_does_not_silently_pass(tmp_path, monkeypatch):
 
     monkeypatch.setenv(holdout.KEY_ENV, "a-different-key")
     assert not holdout.Oracle(tmp_path / "h" / "oracle.json").is_relevant(qid, "T")
+
+
+# --- tier A: gate labeling -------------------------------------------------
+
+def _run_gate(tmp_path, queries, keystrokes, monkeypatch, judge="tester"):
+    """Drive cmd_gate with a scripted stdin. Returns the written records."""
+    import argparse
+    from marrow.capillaries_opt import labels
+
+    qfile = tmp_path / "q.jsonl"
+    qfile.write_text("".join(json.dumps({"query": q, "source": "t"}) + "\n" for q in queries))
+    out = tmp_path / "gate.jsonl"
+
+    keys = iter(keystrokes)
+    monkeypatch.setattr("builtins.input", lambda _prompt="": next(keys))
+    labels.cmd_gate(argparse.Namespace(queries=str(qfile), out=str(out), judge=judge))
+    return labels._read_jsonl(out) if out.exists() else []
+
+
+def test_gate_writes_one_record_per_key(tmp_path, monkeypatch):
+    recs = _run_gate(tmp_path, ["how do I run plexus", "thanks"], ["a", "x"], monkeypatch)
+    assert [r["label"] for r in recs] == ["answerable", "not_a_retrieval_query"]
+    assert all(r["tier"] == "A" for r in recs)
+
+
+def test_gate_omits_relevant_key(tmp_path, monkeypatch):
+    """An `answerable` record with `relevant: []` would claim the pool was
+    judged and empty. Tier A never saw a pool, so the key must be absent."""
+    recs = _run_gate(tmp_path, ["cash flow model"], ["a"], monkeypatch)
+    assert "relevant" not in recs[0]
+    assert "judged_pool" not in recs[0]
+
+
+def test_gate_is_resumable(tmp_path, monkeypatch):
+    """Quitting mid-set and rerunning must not re-ask what is already labeled."""
+    _run_gate(tmp_path, ["q one", "q two"], ["a", "q"], monkeypatch)
+    recs = _run_gate(tmp_path, ["q one", "q two"], ["n"], monkeypatch)
+    assert [r["query"] for r in recs] == ["q one", "q two"]
+    assert [r["label"] for r in recs] == ["answerable", "nothing_relevant"]
+
+
+def test_gate_undo_reoffers_the_query(tmp_path, monkeypatch):
+    """Undo pushes the previous query back so it can be re-answered.
+
+    Two queries, not one: undo cannot reach past the final query, because the
+    loop exits as soon as the last item is judged.
+    """
+    recs = _run_gate(tmp_path, ["q one", "q two"], ["a", "u", "n", "x"], monkeypatch)
+    assert [r["label"] for r in recs] == ["nothing_relevant", "not_a_retrieval_query"]
+
+
+def test_gate_captures_a_note(tmp_path, monkeypatch):
+    recs = _run_gate(tmp_path, ["q"], ["a wants the 13-week variant"], monkeypatch)
+    assert recs[0]["notes"] == "wants the 13-week variant"
+
+
+def test_gate_rejects_unknown_keys(tmp_path, monkeypatch):
+    """A typo must re-ask, never silently drop or mislabel the query."""
+    recs = _run_gate(tmp_path, ["q"], ["z", "", "a"], monkeypatch)
+    assert [r["label"] for r in recs] == ["answerable"]

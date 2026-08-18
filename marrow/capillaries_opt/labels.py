@@ -1,17 +1,33 @@
-"""Pool candidates from capillaries, judge them, write labels.
+"""Label capillaries retrieval queries, in two passes.
 
-    python -m marrow.capillaries_opt.labels pool   --queries q.jsonl --out pool.jsonl
-    python -m marrow.capillaries_opt.labels judge  --pool pool.jsonl --out labels.jsonl
-    python -m marrow.capillaries_opt.labels split  --labels labels.jsonl --out-dir .
+    # Tier A — gate only. No database, no pooling. ~10s per query.
+    python -m marrow.capillaries_opt.labels gate \
+        --queries ../capillaries/eval/plexus_queries.jsonl \
+        --out gate_labels.jsonl --judge bao
 
-Pooling is the whole trick. Judging a query against 1,026 prompts is 1,026
-decisions; at 50 queries nobody finishes. Running three retrieval configs and
-judging their union is 15-30 per query instead, which is an hour of work rather
-than a fortnight.
+    # Tier B — relevance, on the answerable subset only.
+    python -m marrow.capillaries_opt.labels pool  --queries answerable.jsonl --out pool.jsonl
+    python -m marrow.capillaries_opt.labels judge --pool pool.jsonl --out labels.jsonl
+    python -m marrow.capillaries_opt.labels split --labels labels.jsonl --out-dir .
 
-STUB: `pool` and `split` are complete. `judge` has the loop and the record
-shape but prints candidates rather than rendering a real review UI — swap the
-`_ask` function for whatever you want to look at.
+Two passes because they answer different questions and cost different amounts.
+
+Tier A asks only whether the corpus covers a query at all. It needs no
+candidates, so it needs no database and no pooling — the query text alone is
+enough. On the 237-query plexus sample the gate closed on 154, and nothing
+currently distinguishes "the corpus genuinely does not cover these" from "the
+0.58 threshold is too tight and two thirds of real traffic fails silently".
+Tier A settles that in under an hour.
+
+Tier B asks which prompt should have come back, which needs candidates in front
+of the judge. Pooling is the trick there: judging one query against all 1,026
+prompts is 1,026 decisions, while judging the union of three retrieval configs
+is 15-30. It runs only on what Tier A marked `answerable`, so the expensive pass
+is spent on queries where ranking is even a question.
+
+STUB: `judge` still prints candidates rather than rendering a real review
+surface — swap `_ask` for whatever you want to look at. `gate`, `pool`, and
+`split` are complete.
 """
 from __future__ import annotations
 
@@ -105,6 +121,127 @@ def cmd_pool(args: argparse.Namespace) -> int:
     return 0
 
 
+# --- gate (tier A) ---------------------------------------------------------
+
+GATE_KEYS = {
+    "a": "answerable",
+    "n": "nothing_relevant",
+    "x": "not_a_retrieval_query",
+}
+
+_GATE_HELP = """
+  a  answerable            a good prompt exists; the gate should open
+  n  nothing_relevant      the corpus does not cover this; silence is correct
+  x  not_a_retrieval_query chatter, a follow-up, a "thanks"
+
+  s  skip (decide later)   q  save and quit
+  u  undo the previous query (not available after the last one)
+  Add a note after the key:  a wants the 13-week variant specifically
+"""
+
+
+def _ask_gate(query: str, n: int, total: int) -> tuple[str, str] | None:
+    """One query, one keystroke. Returns (label, note), or None for skip/quit.
+
+    Deliberately blind: the caller does not pass gate_opened, retrieved_top1, or
+    the similarity score, even though the source file carries all three. Showing
+    a judge what the system already decided is how you get a label set that
+    agrees with the system by construction and measures nothing. TREC has
+    judged blind since 1992 for this reason.
+    """
+    while True:
+        print(f"\n[{n}/{total}] {query}")
+        raw = input("  a/n/x  (? for help) > ").strip()
+        if not raw:
+            continue
+        key, _, note = raw.partition(" ")
+        key = key.lower()
+        if key == "?":
+            print(_GATE_HELP)
+        elif key == "q":
+            return None
+        elif key == "s":
+            return ("", "")
+        elif key == "u":
+            return ("__undo__", "")
+        elif key in GATE_KEYS:
+            return (GATE_KEYS[key], note.strip())
+        else:
+            print(f"  unknown key {key!r} — one of a/n/x/s/u/q, or ? for help")
+
+
+def cmd_gate(args: argparse.Namespace) -> int:
+    rows = _read_jsonl(args.queries)
+    out_path = Path(args.out)
+
+    # Whole file rewritten after every judgment rather than appended. 237
+    # records is nothing to rewrite, and it makes undo a list pop instead of a
+    # seek-and-truncate on a file being appended to.
+    done = _read_jsonl(out_path) if out_path.exists() else []
+    seen = {r["query_id"] for r in done}
+
+    todo = [r for r in rows if query_id(r["query"]) not in seen]
+    if not todo:
+        print(f"all {len(rows)} queries already labeled in {out_path}")
+        return _gate_summary(done, out_path)
+
+    print(f"{len(done)} labeled, {len(todo)} to go. ? for help, q to stop — progress is saved.")
+
+    i = 0
+    while i < len(todo):
+        row = todo[i]
+        answer = _ask_gate(row["query"], len(done) + 1, len(rows))
+        if answer is None:
+            break
+        label, note = answer
+        # Undo re-offers the previous query by pushing it back onto the todo
+        # list. It cannot reach past the final query: once the last item is
+        # judged the loop has already exited. Mid-set is the case that matters.
+        if label == "__undo__":
+            if done:
+                popped = done.pop()
+                todo.insert(i, {"query": popped["query"], "source": popped.get("source", "unknown")})
+                print(f"  undone: {popped['label']}  {popped['query'][:60]}")
+            else:
+                print("  nothing to undo")
+            continue
+        i += 1
+        if not label:      # skip
+            continue
+        rec = {
+            "query": row["query"],
+            "query_id": query_id(row["query"]),
+            "source": row.get("source", "unknown"),
+            "tier": "A",
+            "label": label,
+            "judged_by": args.judge,
+        }
+        # No `relevant` key at all, rather than an empty list. Tier B adds it.
+        # An empty list on an `answerable` record would be indistinguishable
+        # from "judged the pool and found nothing", which is a different fact.
+        if note:
+            rec["notes"] = note
+        done.append(rec)
+        _write_jsonl(out_path, done)
+
+    return _gate_summary(done, out_path)
+
+
+def _gate_summary(done: list[dict], out_path: Path) -> int:
+    counts: dict[str, int] = {}
+    for r in done:
+        counts[r["label"]] = counts.get(r["label"], 0) + 1
+    print(f"\n{len(done)} labeled -> {out_path}")
+    for k in LABELS:
+        print(f"  {k:22s} {counts.get(k, 0)}")
+    answerable = counts.get("answerable", 0)
+    if answerable:
+        print(f"\nNext, tier B on the {answerable} answerable queries:")
+        print(f"  grep '\"answerable\"' {out_path} > answerable.jsonl")
+        print("  python -m marrow.capillaries_opt.labels pool --queries answerable.jsonl --out pool.jsonl")
+    return 0
+
+
 # --- judge -----------------------------------------------------------------
 
 LABELS = ("answerable", "nothing_relevant", "not_a_retrieval_query")
@@ -180,6 +317,12 @@ def cmd_split(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="marrow.capillaries_opt.labels", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
+
+    s = sub.add_parser("gate", help="tier A: label the gate axis only (no DB, resumable)")
+    s.add_argument("--queries", required=True, help="jsonl with a `query` field per line")
+    s.add_argument("--out", required=True)
+    s.add_argument("--judge", default="unknown")
+    s.set_defaults(fn=cmd_gate)
 
     s = sub.add_parser("pool", help="run retrieval configs, collect candidates to judge")
     s.add_argument("--queries", required=True, help="jsonl with a `query` field per line")
