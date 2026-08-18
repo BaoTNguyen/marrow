@@ -3,3 +3,12 @@ __pycache__/
 .venv/
 checkpoints/
 *.jsonl
+
+# Arteries/marrow runtime state.
+# Nothing under these has ever been tracked in this repo, so they are ignored
+# wholesale rather than by file. Note the asymmetry with capillaries, where
+# .arteries/hooks/, config.json and smoke.sh ARE tracked as configuration —
+# if these hooks should be under version control here too, that is a separate
+# decision, not something this rule blocks.
+.arteries/
+.marrow/
