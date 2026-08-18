@@ -12,3 +12,8 @@ checkpoints/
 # decision, not something this rule blocks.
 .arteries/
 .marrow/
+
+# ...but not the labels. `*.jsonl` above is aimed at generated training data;
+# retrieval labels are hand-made ground truth that took an hour of judgment and
+# are the one jsonl in this repo that must survive a clone.
+!marrow/capillaries_opt/**/*.jsonl
