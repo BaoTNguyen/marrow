@@ -4,7 +4,7 @@ Training runs were the last dark corner of the stack: `heart pulse tail`
 shows episodes and memory decisions but nothing about the GPUs. This
 callback emits training.started / training.progress / training.finished
 so a run is watchable live and its loss curve lands in the same NDJSON
-spool as everything else.
+journal as everything else.
 """
 from __future__ import annotations
 
