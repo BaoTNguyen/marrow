@@ -2,12 +2,18 @@
 from __future__ import annotations
 
 import datetime
+import fcntl
 import json
 import os
 import pty
+import selectors
+import signal
+import struct
 import subprocess
 import sys
+import termios
 import threading
+import tty
 from pathlib import Path
 
 
@@ -149,6 +155,42 @@ def collect_cli_session(agent: str, base_dir: str | Path = ".marrow/collections"
     return out, returncode
 
 
+def _winsize() -> bytes:
+    """Real window size of our controlling terminal, or the 80x24 fallback."""
+    for stream in (sys.stdout, sys.stdin, sys.stderr):
+        try:
+            return fcntl.ioctl(stream.fileno(), termios.TIOCGWINSZ, b"\0" * 8)
+        except (OSError, ValueError, AttributeError):
+            continue
+    return struct.pack("HHHH", 24, 80, 0, 0)
+
+
+def _copy(master_fd: int, read) -> None:
+    stdin_fd, stdout_fd = sys.stdin.fileno(), sys.stdout.fileno()
+    sel = selectors.DefaultSelector()
+    sel.register(master_fd, selectors.EVENT_READ)
+    sel.register(stdin_fd, selectors.EVENT_READ)
+    while True:
+        for key, _ in sel.select():
+            try:
+                data = read(master_fd) if key.fd == master_fd else os.read(stdin_fd, 4096)
+            except OSError:
+                return
+            if key.fd == master_fd:
+                if not data:
+                    return
+                _write_all(stdout_fd, data)
+            elif not data:
+                sel.unregister(stdin_fd)
+            else:
+                _write_all(master_fd, data)
+
+
+def _write_all(fd: int, data: bytes) -> None:
+    while data:
+        data = data[os.write(fd, data):]
+
+
 def _run_pty(cmd: list[str], cwd: Path, transcript_path: Path) -> int:
     old_cwd = Path.cwd()
     with open(transcript_path, "ab", buffering=0) as transcript:
@@ -159,7 +201,29 @@ def _run_pty(cmd: list[str], cwd: Path, transcript_path: Path) -> int:
 
         os.chdir(cwd)
         try:
-            status = pty.spawn(cmd, read)
+            # ponytail: pty.fork instead of pty.spawn purely so the child pty
+            # inherits our real window size and follows SIGWINCH resizes.
+            pid, master_fd = pty.fork()
+            if pid == pty.CHILD:
+                os.execlp(cmd[0], *cmd)
+            fcntl.ioctl(master_fd, termios.TIOCSWINSZ, _winsize())
+            prev_winch = signal.signal(
+                signal.SIGWINCH,
+                lambda *_: fcntl.ioctl(master_fd, termios.TIOCSWINSZ, _winsize()),
+            )
+            try:
+                mode = termios.tcgetattr(sys.stdin.fileno())
+                tty.setraw(sys.stdin.fileno())
+            except termios.error:
+                mode = None
+            try:
+                _copy(master_fd, read)
+            finally:
+                if mode is not None:
+                    termios.tcsetattr(sys.stdin.fileno(), tty.TCSAFLUSH, mode)
+                signal.signal(signal.SIGWINCH, prev_winch)
+                os.close(master_fd)
+            status = os.waitpid(pid, 0)[1]
         finally:
             os.chdir(old_cwd)
     try:
