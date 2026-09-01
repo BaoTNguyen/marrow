@@ -17,3 +17,5 @@ checkpoints/
 # retrieval labels are hand-made ground truth that took an hour of judgment and
 # are the one jsonl in this repo that must survive a clone.
 !marrow/capillaries_opt/**/*.jsonl
+.codex/config.toml
+.claude/settings.local.json
