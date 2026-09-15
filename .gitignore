@@ -19,3 +19,8 @@ checkpoints/
 !marrow/capillaries_opt/**/*.jsonl
 .codex/config.toml
 .claude/settings.local.json
+
+# Local secrets: never tracked, in any repo of this stack.
+.env
+.env.*
+!.env.example
