@@ -8,7 +8,7 @@ import re
 import subprocess
 
 from heart.env import Workspace
-from heart.reward import diff_changed_lines
+from heart.reward import diff_quality
 from heart.taskspec import Verifier
 from heart.verify import run_verifiers
 
@@ -73,9 +73,9 @@ def score_patch(task: dict, completion: str, timeout: int = 120) -> float:
         )
     finally:
         ws.destroy()
-    changed = diff_changed_lines(final_diff)
-    quality = 1.0 if changed <= 50 else max(0.0, 1.0 - (changed - 50) / 450)
-    return round(0.8 * pass_frac + 0.2 * quality, 4)
+    # the size curve is heart's, not a copy of it: this is the number GRPO
+    # optimises against and the number the runtime scores with
+    return round(0.8 * pass_frac + 0.2 * diff_quality(final_diff), 4)
 
 
 DIFF_INSTRUCTION = (
