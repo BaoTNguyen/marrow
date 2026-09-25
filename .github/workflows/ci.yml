@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [dev]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: marrow
+
+      # marrow imports heart directly (reward.py -> heart.env, spine.py ->
+      # heart.events), and its tests bootstrap `../../heart/src` by hand, so the
+      # sibling has to sit next to it under the workspace root or nothing
+      # collects. Same matrix rule as the rest of the stack: a PR into main is
+      # judged against heart's main, work on dev against heart's dev.
+      - uses: actions/checkout@v4
+        with:
+          repository: BaoTNguyen/heart
+          ref: ${{ github.base_ref == 'main' && 'main' || 'dev' }}
+          path: heart
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # No install. marrow's pyproject pulls torch and transformers for training,
+      # and none of that is reachable from the suite — collection, reward shaping
+      # and the spine contracts are all stdlib plus heart. Installing a CUDA
+      # stack to run a three-second suite would make the gate slow enough to
+      # route around.
+      - run: pip install pytest
+
+      - working-directory: marrow
+        run: python -m pytest -q
