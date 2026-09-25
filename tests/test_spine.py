@@ -20,8 +20,8 @@ from marrow.spine import SpineCallback  # noqa: E402
 class SpineTests(unittest.TestCase):
     def test_callback_emits_lifecycle(self):
         with tempfile.TemporaryDirectory() as tmp:
-            old = os.environ.get("HEART_SPOOL_DIR")
-            os.environ["HEART_SPOOL_DIR"] = tmp
+            old = os.environ.get("EVENT_JOURNAL_DIR")
+            os.environ["EVENT_JOURNAL_DIR"] = tmp
             try:
                 cb = SpineCallback("sft")
                 args = types.SimpleNamespace(output_dir="checkpoints/sft")
@@ -43,9 +43,9 @@ class SpineTests(unittest.TestCase):
                 self.assertEqual(events[1]["source"], "marrow")
             finally:
                 if old is None:
-                    os.environ.pop("HEART_SPOOL_DIR", None)
+                    os.environ.pop("EVENT_JOURNAL_DIR", None)
                 else:
-                    os.environ["HEART_SPOOL_DIR"] = old
+                    os.environ["EVENT_JOURNAL_DIR"] = old
 
 
 if __name__ == "__main__":

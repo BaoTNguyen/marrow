@@ -2,8 +2,12 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import io
+import os
+import struct
 import sys
+import termios
 import tempfile
 import unittest
 from pathlib import Path
@@ -18,6 +22,33 @@ from marrow.collect import (  # noqa: E402
     collect_cli_session,
     shell_hook,
 )
+from marrow.collect import _run_pty  # noqa: E402
+
+
+class PtyWindowSizeTest(unittest.TestCase):
+    def test_child_inherits_real_window_size(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp)
+            transcript = work / "terminal.typescript"
+            master, slave = os.openpty()
+            fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 120, 0, 0))
+            pid = os.fork()
+            if pid == 0:  # child: pretend the pty is our terminal
+                try:
+                    os.setsid()
+                    fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
+                    for fd in (0, 1, 2):
+                        os.dup2(slave, fd)
+                    sys.stdin = os.fdopen(0, "r")
+                    sys.stdout = os.fdopen(1, "w")
+                    sys.stderr = os.fdopen(2, "w")
+                    _run_pty(["stty", "size"], work, transcript)
+                finally:
+                    os._exit(0)
+            os.close(slave)
+            os.waitpid(pid, 0)
+            os.close(master)
+            self.assertIn(b"40 120", transcript.read_bytes())
 
 
 class TestCollect(unittest.TestCase):

@@ -11,6 +11,7 @@ from datasets import load_dataset
 from transformers import AutoTokenizer
 from trl import DPOConfig, DPOTrainer
 
+from .spine import train_with_spine
 from .train_sft import DEFAULT_MODEL, LORA, load_model
 
 
@@ -48,10 +49,7 @@ def main() -> None:
             save_strategy="epoch",
         ),
     )
-    from marrow.spine import SpineCallback
-    trainer.add_callback(SpineCallback("dpo"))
-    trainer.train()
-    trainer.save_model(args.out)
+    train_with_spine(trainer, "dpo", args.out)
 
 
 if __name__ == "__main__":

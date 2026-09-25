@@ -20,6 +20,7 @@ from transformers import AutoTokenizer
 from trl import GRPOConfig, GRPOTrainer
 
 from .reward import build_prompt, score_patch
+from .spine import train_with_spine
 from .train_sft import DEFAULT_MODEL, LORA, load_model
 
 
@@ -67,10 +68,7 @@ def main() -> None:
             save_steps=25,
         ),
     )
-    from marrow.spine import SpineCallback
-    trainer.add_callback(SpineCallback("grpo"))
-    trainer.train()
-    trainer.save_model(args.out)
+    train_with_spine(trainer, "grpo", args.out)
 
 
 if __name__ == "__main__":

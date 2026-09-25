@@ -13,6 +13,8 @@ from peft import LoraConfig
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from trl import SFTConfig, SFTTrainer
 
+from marrow.spine import train_with_spine
+
 DEFAULT_MODEL = "Qwen/Qwen2.5-Coder-7B-Instruct"
 
 
@@ -64,10 +66,7 @@ def main() -> None:
             save_strategy="epoch",
         ),
     )
-    from marrow.spine import SpineCallback
-    trainer.add_callback(SpineCallback("sft"))
-    trainer.train()
-    trainer.save_model(args.out)
+    train_with_spine(trainer, "sft", args.out)
 
 
 if __name__ == "__main__":
