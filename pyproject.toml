@@ -22,3 +22,16 @@ packages = ["marrow"]
 
 [project.scripts]
 marrow = "marrow.cli:main"
+
+# heart is a hard requirement (reward.py, spine.py) but isn't on PyPI, so it's
+# pinned to the sibling checkout -- the same arrangement plexus uses. The suite
+# needs only this group, not the CUDA stack above:
+#   uv run --only-group dev pytest -q
+[dependency-groups]
+dev = [
+    "heart",
+    "pytest>=8.0",
+]
+
+[tool.uv.sources]
+heart = { path = "../heart", editable = true }
