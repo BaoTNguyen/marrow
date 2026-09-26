@@ -69,11 +69,13 @@ heart must sit beside this checkout (`git clone https://github.com/BaoTNguyen/he
 or clone the whole stack with `git clone --recursive https://github.com/BaoTNguyen/vascular`.
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e ../heart          # reward computation imports heart
-pip install -e .                 # torch/trl/peft/bitsandbytes
-pip install vllm                 # rollout serving (GRPO + the heart "local" agent)
+uv sync                          # heart from ../heart, plus torch/trl/peft/bitsandbytes
+uv pip install vllm              # rollout serving (GRPO + the heart "local" agent);
+                                 # `uv run` keeps it, a plain `uv sync` removes it
+source .venv/bin/activate        # or prefix the commands below with `uv run`
 ```
+
+The tests need only heart, not the CUDA stack: `uv run --only-group dev pytest -q`.
 
 ## Base model
 
