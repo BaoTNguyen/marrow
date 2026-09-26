@@ -65,6 +65,9 @@ and serves the same model on the other GPU for rollouts.
 
 ## Setup
 
+heart must sit beside this checkout (`git clone https://github.com/BaoTNguyen/heart ../heart`),
+or clone the whole stack with `git clone --recursive https://github.com/BaoTNguyen/vascular`.
+
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ../heart          # reward computation imports heart
