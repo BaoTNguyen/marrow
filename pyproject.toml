@@ -35,3 +35,8 @@ dev = [
 
 [tool.uv.sources]
 heart = { path = "../heart", editable = true }
+
+[tool.pytest.ini_options]
+# `--only-group dev` leaves marrow itself uninstalled (that's what keeps torch
+# out), so the suite imports it from the checkout.
+pythonpath = ["."]
