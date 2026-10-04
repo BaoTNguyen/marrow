@@ -11,7 +11,7 @@ nobody can say whether it helped.
 ## Why it lives here
 
 Marrow already collects the raw material. Every query in the set comes from a
-real session, and `.marrow/collections/` is where sessions land. Labels are
+real session, and `.vascular/marrow/collections/` is where sessions land. Labels are
 annotations on data marrow already owns.
 
 Marrow imports capillaries to pool candidates — top of the stack reading from

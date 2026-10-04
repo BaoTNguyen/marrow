@@ -16,8 +16,9 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("agent", choices=("codex", "claude"))
     s.add_argument("prompt")
     s.add_argument("--cwd", default=".", help="repo directory where the agent CLI should run")
-    s.add_argument("--out", default=".marrow/collections",
-                   help="base collection directory; relative paths resolve under --cwd")
+    s.add_argument("--out", default=None,
+                   help="base collection directory (default: .vascular/marrow/collections); "
+                        "relative paths resolve under --cwd")
     s.add_argument("--task-id", default=None, help="optional stable task id for dataset joins")
     s.add_argument("--dry-run", action="store_true",
                    help="print the provider command without executing it")
@@ -25,8 +26,9 @@ def main(argv: list[str] | None = None) -> int:
     s = collect_sub.add_parser("cli-session", help="record a visible Codex or Claude CLI session")
     s.add_argument("agent", choices=("codex", "claude"))
     s.add_argument("--cwd", default=".", help="repo directory where the agent CLI should run")
-    s.add_argument("--out", default=".marrow/collections",
-                   help="base collection directory; relative paths resolve under --cwd")
+    s.add_argument("--out", default=None,
+                   help="base collection directory (default: .vascular/marrow/collections); "
+                        "relative paths resolve under --cwd")
     s.add_argument("--task-id", default=None, help="optional stable task id for dataset joins")
     s.add_argument("--dry-run", action="store_true",
                    help="print the provider command without executing it")
