@@ -13,7 +13,7 @@ from marrow.vascular_paths import KINDS, home, journal_dir, path, repo_dir
 class TestKinds:
     def test_kinds_is_tuple_of_strings(self):
         assert isinstance(KINDS, tuple)
-        assert KINDS == ("config", "state", "cache", "data", "backups")
+        assert KINDS == ("config", "secrets", "state", "spool", "log", "cache", "data", "backups")
 
 
 class TestHome:
@@ -39,6 +39,12 @@ class TestPath:
         p = path("state", "heart", "events", "2024", "log.txt")
         assert p == tmp_path / "state" / "heart" / "events" / "2024" / "log.txt"
 
+    def test_new_kinds(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("VASCULAR_HOME", str(tmp_path))
+        assert path("secrets", "x") == tmp_path / "secrets" / "x"
+        assert path("spool", "x") == tmp_path / "spool" / "x"
+        assert path("log", "x") == tmp_path / "log" / "x"
+
     def test_invalid_kind_raises(self, monkeypatch):
         monkeypatch.delenv("VASCULAR_HOME", raising=False)
         with pytest.raises(ValueError, match="unknown kind"):
@@ -56,7 +62,7 @@ class TestJournalDir:
         monkeypatch.setenv("VASCULAR_HOME", str(tmp_path))
         monkeypatch.delenv("EVENT_JOURNAL_DIR", raising=False)
         j = journal_dir()
-        assert j == tmp_path / "state" / "heart" / "events"
+        assert j == tmp_path / "spool" / "events"
 
     def test_journal_dir_overridden(self, monkeypatch, tmp_path):
         monkeypatch.setenv("EVENT_JOURNAL_DIR", "/custom/events")
