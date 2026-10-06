@@ -80,11 +80,11 @@ class TestCollect(unittest.TestCase):
             repo.mkdir()
             out, code = collect_cli_run("codex", "do it", dry_run=True, cwd=repo)
             self.assertEqual(code, 0)
-            self.assertEqual(out.parent, repo / ".marrow" / "collections")
+            self.assertEqual(out.parent, repo / ".vascular" / "marrow" / "collections")
             self.assertTrue(out.name.endswith("-codex"))
             out, code = collect_cli_session("claude", dry_run=True, cwd=repo)
             self.assertEqual(code, 0)
-            self.assertEqual(out.parent, repo / ".marrow" / "collections")
+            self.assertEqual(out.parent, repo / ".vascular" / "marrow" / "collections")
             self.assertTrue(out.name.endswith("-claude"))
 
     def test_cli_run_dry_run_after_prompt_is_not_provider_arg(self):
@@ -100,7 +100,7 @@ class TestCollect(unittest.TestCase):
             out = buf.getvalue()
             self.assertNotIn("--dry-run", out)
             self.assertIn("--model sonnet", out)
-            self.assertIn(str(repo / ".marrow" / "collections"), out)
+            self.assertIn(str(repo / ".vascular" / "marrow" / "collections"), out)
 
     def test_cli_session_dry_run_preserves_codex_and_claude(self):
         with tempfile.TemporaryDirectory() as d:

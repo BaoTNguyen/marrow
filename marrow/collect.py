@@ -16,6 +16,8 @@ import threading
 import tty
 from pathlib import Path
 
+from .vascular_paths import repo_dir
+
 
 def _now() -> datetime.datetime:
     return datetime.datetime.now(datetime.timezone.utc)
@@ -61,17 +63,22 @@ def _clean_extra(extra: list[str] | None = None) -> list[str]:
     return extra
 
 
-def _base_dir(base_dir: str | Path, cwd: str | Path) -> Path:
+def default_collections_dir() -> Path:
+    """Relative on purpose: _base_dir resolves it under the run's cwd at call time."""
+    return repo_dir(".", "marrow") / "collections"
+
+
+def _base_dir(base_dir: str | Path | None, cwd: str | Path) -> Path:
     work_dir = Path(cwd).expanduser().resolve()
     if not work_dir.is_dir():
         raise FileNotFoundError(f"collect cwd does not exist or is not a directory: {work_dir}")
-    base = Path(base_dir).expanduser()
+    base = Path(base_dir if base_dir is not None else default_collections_dir()).expanduser()
     if not base.is_absolute():
         base = work_dir / base
     return base
 
 
-def collect_cli_run(agent: str, prompt: str, base_dir: str | Path = ".marrow/collections",
+def collect_cli_run(agent: str, prompt: str, base_dir: str | Path | None = None,
                     extra: list[str] | None = None, dry_run: bool = False,
                     cwd: str | Path = ".", task_id: str | None = None) -> tuple[Path, int]:
     """Run one CLI agent and capture the raw artifacts Marrow can later normalize."""
@@ -115,7 +122,7 @@ def collect_cli_run(agent: str, prompt: str, base_dir: str | Path = ".marrow/col
     return out, proc.returncode
 
 
-def collect_cli_session(agent: str, base_dir: str | Path = ".marrow/collections",
+def collect_cli_session(agent: str, base_dir: str | Path | None = None,
                         extra: list[str] | None = None, dry_run: bool = False,
                         cwd: str | Path = ".", task_id: str | None = None) -> tuple[Path, int]:
     """Run the real Codex/Claude CLI and record the visible terminal session."""
