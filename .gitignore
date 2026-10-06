@@ -12,6 +12,7 @@ checkpoints/
 # decision, not something this rule blocks.
 .arteries/
 .marrow/
+.vascular/
 
 # ...but not the labels. `*.jsonl` above is aimed at generated training data;
 # retrieval labels are hand-made ground truth that took an hour of judgment and
