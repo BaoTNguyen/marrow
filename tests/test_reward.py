@@ -10,7 +10,9 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "heart" / "src"))
+# heart beside this checkout, but behind any heart already on the path: a
+# dependent verifier puts the candidate heart first on PYTHONPATH (F85)
+sys.path.append(str(Path(__file__).resolve().parents[2] / "heart" / "src"))
 
 from marrow.reward import build_prompt, extract_diff, score_patch  # noqa: E402
 
