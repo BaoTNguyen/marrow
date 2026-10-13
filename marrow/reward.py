@@ -8,9 +8,17 @@ import re
 import subprocess
 
 from heart.env import Workspace
-from heart.reward import diff_quality
+from heart.guard import diff_changed_lines
 from heart.taskspec import Verifier
 from heart.verify import run_verifiers
+
+
+def diff_quality(diff_text: str) -> float:
+    """<=50 changed lines is full credit, 0 at 500. Heart no longer computes a
+    reward (removed 2026-10-13), so this curve lives here until marrow is
+    reworked against pulse."""
+    changed = diff_changed_lines(diff_text)
+    return 1.0 if changed <= 50 else max(0.0, 1.0 - (changed - 50) / 450)
 
 FENCE_RE = re.compile(r"```(?:diff|patch)?\n(.*?)```", re.DOTALL)
 # aider-style edit blocks: filename line, then <<<<<<< SEARCH / ======= / >>>>>>> REPLACE
