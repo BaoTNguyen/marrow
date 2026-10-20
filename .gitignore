@@ -25,3 +25,6 @@ checkpoints/
 .env
 .env.*
 !.env.example
+
+# Raw session transcripts: personal, kept local only.
+marrow_reasoning_trace_archive.md
