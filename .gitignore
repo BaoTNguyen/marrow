@@ -28,3 +28,8 @@ checkpoints/
 
 # Raw session transcripts: personal, kept local only.
 marrow_reasoning_trace_archive.md
+
+# Private, never committed anywhere: agent reasoning traces and compaction
+# transcripts (DIRECTION §14).
+*reasoning_trace*
+.compaction-corpus/
