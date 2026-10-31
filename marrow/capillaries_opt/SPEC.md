@@ -3,7 +3,7 @@
 Ground truth for capillaries' retrieval layer: which prompt *should* have come
 back for a given query, and whether anything should have come back at all.
 
-`docs/rework_actions.md` in capillaries calls this the keystone, and lists what
+Capillaries' September rework called this the keystone, and lists what
 it blocks: the chunk cutover (2.2), the reranker choice (6.1), and the embedding
 bake-off (6.3). Chunking is built, backfilled, and sitting unused because
 nobody can say whether it helped.
