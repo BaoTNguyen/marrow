@@ -1,11 +1,14 @@
-# marrow
+# About
 
-RL training for coding agents. Marrow trains models on episodes an agent
-harness already ran and checked against real test suites, and hands the
-checkpoint back as an OpenAI-compatible endpoint the harness can drive. Its
-input is an exported `episodes.jsonl`; it scores patches itself
-(`marrow/reward.py`), never talks to Postgres directly, and touches the agent
-CLIs only to record your own sessions (`marrow collect`).
+marrow is part of [vascular](https://github.com/BaoTNguyen/vascular), the software factory
+monorepo. This repo acts as the training layer that turns agent episodes into better
+checkpoints.
+
+Marrow trains models on episodes an agent harness already ran and checked
+against real test suites, and hands the checkpoint back as an OpenAI-compatible
+endpoint the harness can drive. Its input is an exported `episodes.jsonl`; it
+scores patches itself (`marrow/reward.py`), never talks to Postgres directly,
+and touches the agent CLIs only to record your own sessions (`marrow collect`).
 
 Why a separate repo: training pulls in torch, TRL, PEFT, bitsandbytes, and
 vLLM — a multi-GB CUDA stack that has no business in a tool you install into
@@ -13,9 +16,7 @@ every project.
 
 ## Where it sits in the stack
 
-Marrow is part of [vascular](https://github.com/BaoTNguyen/vascular), the
-monorepo that holds the whole stack in one clone; vascular's README shows how
-episodes are produced and exported for it. Marrow reads the exported
+vascular's README shows how episodes are produced and exported for marrow. Marrow reads the exported
 `episodes.jsonl`, scores patches with the tasks' own verifiers, trains a
 checkpoint, and serves it back as the harness's API agent. The loop closes
 there: a better checkpoint lands more scope per budget, which produces more
