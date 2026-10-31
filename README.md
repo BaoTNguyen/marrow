@@ -1,9 +1,10 @@
 # marrow
 
 RL training for the heart/arteries/capillaries stack. Marrow trains the models;
-heart runs the episodes and computes rewards. The contract between them is
+heart runs the episodes and records their outcomes. The contract between them is
 heart's `episodes.jsonl` export plus heart imported as a library for patch
-scoring — marrow never talks to Postgres or the agent CLIs directly.
+scoring (`marrow/reward.py`) — marrow never talks to Postgres directly, and
+touches the agent CLIs only to record your own sessions (`marrow collect`).
 
 Why a separate repo: heart is a daily-workflow orchestrator that stays
 stdlib-only so it installs anywhere in seconds. Training pulls in torch, TRL,
@@ -12,18 +13,19 @@ tool you install into every project.
 
 ## Where it sits in the stack
 
-Marrow is the training layer at the bottom of a five-repo agent stack:
+Marrow is the training layer at the bottom of a six-repo agent stack:
 
 ```text
 capillaries  prompt/skill retrieval
 arteries     memory + trace substrate
-heart        orchestration + environment + reward
+heart        orchestration + environment + verify
 plexus       goal decomposition + acceptance loop
 marrow       RL training on heart's episodes           <- this repo
+pulse        event journal: collection, store, queries
 ```
 
-Heart runs the episodes and scores them; marrow reads the exported
-`episodes.jsonl`, trains a checkpoint, and hands it back as heart's `api` agent.
+Heart runs the episodes and records their outcomes; marrow reads the exported
+`episodes.jsonl`, scores patches with heart's verifiers, trains a checkpoint, and hands it back as heart's `api` agent.
 The loop closes there: a better checkpoint lands more scope per budget, which
 produces more training data.
 
@@ -53,8 +55,8 @@ assume a datacenter. Marrow does neither:
   on and runs through the same episode machinery as everything else. A checkpoint
   is judged the way it will actually be used.
 - **Training is visible on the same board as everything else.** The SFT/DPO/GRPO
-  loops tee progress into heart's event spine (`marrow/spine.py`), so a run's loss
-  and step cadence show up in `heart pulse` next to the episodes it trains on —
+  loops emit progress through `heart.events` (`marrow/spine.py`), so a run's loss
+  and step cadence land in pulse and `heart observe` next to the episodes it trains on —
   no separate dashboard.
 
 ## Hardware assumptions
@@ -105,8 +107,7 @@ ledger — that's where retrieval/gate labels come from.
 
 GRPO needs no value model — on 48 GB total, a PPO value network would eat the
 VRAM the policy needs. Group-relative advantages from N samples per task fit
-the best-of-N data engine heart already provides. This is the same reasoning as
-the handoff doc's "do not start with PPO," with hardware to back it.
+the best-of-N data engine heart already provides.
 
 ### GRPO topology on 2×3090
 
